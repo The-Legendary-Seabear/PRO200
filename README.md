@@ -14,6 +14,7 @@ The application will provide a simple graphical interface where the user can sel
 ## Team Member(s)
 
 - Alex Kohn
+- Christopher Munson
 
 ## Technologies Being Used
 
