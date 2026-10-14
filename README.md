@@ -16,6 +16,7 @@ The application will provide a simple graphical interface where the user can sel
 - Alex Kohn
 - Cole Lowery
 - Christopher Munson
+- Nicholas Alabre
 
 ## Technologies Being Used
 
