@@ -20,13 +20,13 @@ The application will provide a simple graphical interface where the user can sel
 
 ## Technologies Being Used
 
-- **Python** – Main programming language for the application.
-- **Tkinter** – Used to create the graphical user interface.
-- **OpenCV** – Used for image processing and comparing images.
-- **Pillow (PIL)** – Used for loading, resizing, and displaying images.
-- **ImageHash** – Used to create perceptual hashes for detecting visually similar images.
-- **hashlib** – Built-in Python library used to create file hashes for finding exact duplicate files.
-- **pathlib / os** – Used to navigate folders and work with files on the user's computer.
+- **Python** - Main programming language for the application.
+- **Tkinter** - Used to create the graphical user interface.
+- **OpenCV** - Used for image processing and comparing images.
+- **Pillow (PIL)** - Used for loading, resizing, and displaying images.
+- **ImageHash** - Used to create perceptual hashes for detecting visually similar images.
+- **hashlib** - Built-in Python library used to create file hashes for finding exact duplicate files.
+- **pathlib / os** - Used to navigate folders and work with files on the user's computer.
 
 ## Basic Setup and Installation
 
