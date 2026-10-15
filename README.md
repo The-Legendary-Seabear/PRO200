@@ -28,6 +28,21 @@ The application will provide a simple graphical interface where the user can sel
 - **hashlib** - Built-in Python library used to create file hashes for finding exact duplicate files.
 - **pathlib / os** - Used to navigate folders and work with files on the user's computer.
 
+## Project Structure
+
+```text
+PRO200/
+├── main.py                       # Application entry point
+├── photo_duplicate_finder/
+│   ├── __init__.py
+│   ├── app.py                    # Application startup and coordination
+│   ├── gui.py                    # Tkinter user interface
+│   ├── hashing.py                # Exact and perceptual image hashing
+│   └── scanner.py                # Folder traversal and image discovery
+├── tests/                        # Automated tests
+└── README.md
+```
+
 ## Basic Setup and Installation
 
 ### 1. Install Python
@@ -66,10 +81,11 @@ Tkinter, hashlib, pathlib, and os are included with standard Python installation
 
 ### 4. Run the Application
 
-Run the main Python file:
+From the project folder, run:
 
 ```bash
 python main.py
 ```
 
-Once the program starts, select a folder containing images and begin the duplicate scan.
+The initial window is a scaffold. Folder selection and duplicate scanning can be
+implemented in `gui.py` and `scanner.py`; hashing logic belongs in `hashing.py`.
