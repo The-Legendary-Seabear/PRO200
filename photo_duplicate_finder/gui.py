@@ -27,6 +27,9 @@ def run() -> None:
     choose_button = tk.Button(root,text="Choose Folder",command=lambda: choose_folder(folder_label))
     choose_button.pack(pady=10)
 
+    search_button = tk.Button(root, text="Search Folder")
+    search_button.pack(pady=10)
+
     root.mainloop()
 
     if __name__ == "__main__":
