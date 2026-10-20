@@ -16,3 +16,6 @@ def run() -> None:
     prompt.pack()
 
     root.mainloop()
+
+    if __name__ == "__main__":
+        run()
