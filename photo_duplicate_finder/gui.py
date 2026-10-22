@@ -32,22 +32,55 @@ def display_duplicate_photos(root, duplicates):
         label.pack(pady=20)
         return
 
+    results_canvas = tk.Canvas(popup, highlightthickness=0)
+    scrollbar = tk.Scrollbar(popup, orient="vertical", command=results_canvas.yview)
+    horizontal_scrollbar = tk.Scrollbar(
+        popup,
+        orient="horizontal",
+        command=results_canvas.xview,
+    )
+    results_canvas.configure(
+        yscrollcommand=scrollbar.set,
+        xscrollcommand=horizontal_scrollbar.set,
+    )
+
+    horizontal_scrollbar.pack(side="bottom", fill="x")
+    scrollbar.pack(side="right", fill="y")
+    results_canvas.pack(side="left", fill="both", expand=True)
+
+    results_frame = tk.Frame(results_canvas)
+    results_window = results_canvas.create_window(
+        (0, 0),
+        window=results_frame,
+        anchor="nw",
+    )
+
+    results_frame.bind(
+        "<Configure>",
+        lambda event: results_canvas.configure(
+            scrollregion=results_canvas.bbox("all")
+        ),
+    )
+
     for file_hash, files in duplicates.items():
-        for file_path in files:
+        duplicate_frame = tk.Frame(results_frame)
+        duplicate_frame.pack(pady=(0, 15))
+
+        for column, file_path in enumerate(files):
             image = Image.open(file_path)
             image.thumbnail((150, 150))
 
             photo = ImageTk.PhotoImage(image)
 
-            image_label = tk.Label(popup, image=photo)
+            image_label = tk.Label(duplicate_frame, image=photo)
             image_label.image = photo
-            image_label.pack()
+            image_label.grid(row=0, column=column, padx=10)
 
             name_label = tk.Label(
-                popup,
+                duplicate_frame,
                 text=file_path.name
             )
-            name_label.pack(pady=(0, 15))
+            name_label.grid(row=1, column=column, padx=10, pady=(0, 15))
 
 def run() -> None:
     """Create and display the application window."""
@@ -75,4 +108,3 @@ def run() -> None:
 
 if __name__ == "__main__":
     run()
-
