@@ -62,25 +62,77 @@ def display_duplicate_photos(root, duplicates):
         ),
     )
 
-    for file_hash, files in duplicates.items():
-        duplicate_frame = tk.Frame(results_frame)
-        duplicate_frame.pack(pady=(0, 15))
+    for files in duplicates.values():
+        display_duplicate_group(results_frame, files)
 
-        for column, file_path in enumerate(files):
-            image = Image.open(file_path)
-            image.thumbnail((150, 150))
 
-            photo = ImageTk.PhotoImage(image)
+def display_duplicate_group(parent, files):
+    duplicate_frame = tk.Frame(parent)
+    duplicate_frame.pack(pady=(0, 15))
 
-            image_label = tk.Label(duplicate_frame, image=photo)
-            image_label.image = photo
-            image_label.grid(row=0, column=column, padx=10)
+    for column, file_path in enumerate(files):
+        image = Image.open(file_path)
+        image.thumbnail((150, 150))
 
-            name_label = tk.Label(
-                duplicate_frame,
-                text=file_path.name
-            )
-            name_label.grid(row=1, column=column, padx=10, pady=(0, 15))
+        photo = ImageTk.PhotoImage(image)
+
+        image_label = tk.Label(duplicate_frame, image=photo)
+        image_label.image = photo
+        image_label.grid(row=0, column=column, padx=10)
+
+        name_label = tk.Label(duplicate_frame, text=file_path.name)
+        name_label.grid(row=1, column=column, padx=10, pady=(0, 15))
+
+    delete_button = tk.Button(
+        duplicate_frame,
+        text=f"Keep {files[0].name}, delete other copies",
+        command=lambda: delete_duplicate_group(parent, files, duplicate_frame),
+    )
+    delete_button.grid(row=2, column=0, columnspan=len(files), pady=(0, 10))
+
+
+def delete_duplicate_group(parent, files, duplicate_frame):
+    kept_file = files[0]
+    files_to_delete = files[1:]
+    confirmed = messagebox.askyesno(
+        "Delete duplicate photos",
+        f"Keep {kept_file.name} and permanently delete "
+        f"{len(files_to_delete)} duplicate photo(s)?",
+        parent=parent.winfo_toplevel(),
+    )
+    if not confirmed:
+        return
+
+    failed_files = []
+    for file_path in files_to_delete:
+        try:
+            file_path.unlink()
+        except OSError as error:
+            failed_files.append((file_path, error))
+
+    if failed_files:
+        duplicate_frame.destroy()
+        display_duplicate_group(
+            parent,
+            [kept_file, *(file_path for file_path, _ in failed_files)],
+        )
+        failures = "\n".join(
+            f"{file_path}: {error}" for file_path, error in failed_files
+        )
+        messagebox.showerror(
+            "Could not delete all duplicates",
+            f"Some files were deleted, but these could not be removed:\n{failures}",
+            parent=parent.winfo_toplevel(),
+        )
+        return
+
+    duplicate_frame.destroy()
+    messagebox.showinfo(
+        "Duplicates deleted",
+        f"Kept {kept_file.name} and deleted {len(files_to_delete)} duplicate "
+        f"photo(s).",
+        parent=parent.winfo_toplevel(),
+    )
 
 def run() -> None:
     """Create and display the application window."""

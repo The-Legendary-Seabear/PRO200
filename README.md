@@ -9,7 +9,7 @@ The program will use two main methods to detect duplicates:
 - **File hashing** to identify images that are exact duplicates.
 - **Image comparison** to identify images that look the same or very similar even if the files are not identical.
 
-The application will provide a simple graphical interface where the user can select a folder, scan its images, review detected duplicates, and decide which files they want to keep or remove.
+The application provides a simple graphical interface where the user can select a folder and scan its images. Each duplicate group includes a button to keep the first listed photo and permanently delete the other copies, after confirmation.
 
 ## Team Member(s)
 
@@ -87,5 +87,6 @@ From the project folder, run:
 python main.py
 ```
 
-The initial window is a scaffold. Folder selection and duplicate scanning can be
-implemented in `gui.py` and `scanner.py`; hashing logic belongs in `hashing.py`.
+Duplicate groups are detected by exact file hash. In the results window, use a
+group's **Keep ..., delete other copies** button to remove all but the first
+listed file. Deletion is permanent and requires confirmation.
