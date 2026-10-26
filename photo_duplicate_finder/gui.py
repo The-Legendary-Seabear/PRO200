@@ -22,6 +22,9 @@ def search_folder(root, folder_label):
 
     display_duplicate_photos(root, duplicates)
 
+IMAGES_PER_ROW = 4
+
+
 def display_duplicate_photos(root, duplicates):
     popup = tk.Toplevel(root)
     popup.title("Duplicate Photos")
@@ -32,45 +35,62 @@ def display_duplicate_photos(root, duplicates):
         label.pack(pady=20)
         return
 
-    results_canvas = tk.Canvas(popup, highlightthickness=0)
-    scrollbar = tk.Scrollbar(popup, orient="vertical", command=results_canvas.yview)
-    horizontal_scrollbar = tk.Scrollbar(
-        popup,
-        orient="horizontal",
-        command=results_canvas.xview,
-    )
-    results_canvas.configure(
-        yscrollcommand=scrollbar.set,
-        xscrollcommand=horizontal_scrollbar.set,
-    )
+    groups = [list(files) for files in duplicates.values()]
+    state = {"index": 0}
 
-    horizontal_scrollbar.pack(side="bottom", fill="x")
-    scrollbar.pack(side="right", fill="y")
-    results_canvas.pack(side="left", fill="both", expand=True)
+    set_label = tk.Label(popup, font=("Arial", 14))
+    set_label.pack(pady=10)
 
-    results_frame = tk.Frame(results_canvas)
-    results_window = results_canvas.create_window(
-        (0, 0),
-        window=results_frame,
-        anchor="nw",
-    )
+    group_frame = tk.Frame(popup)
+    group_frame.pack(fill="both", expand=True)
 
-    results_frame.bind(
-        "<Configure>",
-        lambda event: results_canvas.configure(
-            scrollregion=results_canvas.bbox("all")
-        ),
-    )
+    next_button = tk.Button(popup, text="Next")
+    next_button.pack(pady=10)
 
-    for files in duplicates.values():
-        display_duplicate_group(results_frame, files)
+    def show_current_group():
+        for widget in group_frame.winfo_children():
+            widget.destroy()
+
+        index = state["index"]
+        set_label.config(text=f"Duplicate set {index + 1} of {len(groups)}")
+        if index == len(groups) - 1:
+            next_button.config(text="Finish")
+        else:
+            next_button.config(text="Next")
+
+        display_duplicate_group(group_frame, groups[index], show_current_group)
+
+    def show_next_group():
+        if state["index"] < len(groups) - 1:
+            state["index"] += 1
+            show_current_group()
+        else:
+            messagebox.showinfo(
+                "Done",
+                "You have reviewed all duplicate sets.",
+                parent=popup,
+            )
+            popup.destroy()
+
+    next_button.config(command=show_next_group)
+    show_current_group()
 
 
-def display_duplicate_group(parent, files):
+def display_duplicate_group(parent, files, refresh):
     duplicate_frame = tk.Frame(parent)
     duplicate_frame.pack(pady=(0, 15))
 
-    for column, file_path in enumerate(files):
+    if len(files) < 2:
+        message = tk.Label(
+            duplicate_frame,
+            text="No duplicates left in this set. Click Next to continue.",
+        )
+        message.grid(row=0, column=0, columnspan=IMAGES_PER_ROW, pady=20)
+
+    for position, file_path in enumerate(files):
+        row = (position // IMAGES_PER_ROW) * 3 + 1
+        column = position % IMAGES_PER_ROW
+
         image = Image.open(file_path)
         image.thumbnail((150, 150))
 
@@ -78,61 +98,42 @@ def display_duplicate_group(parent, files):
 
         image_label = tk.Label(duplicate_frame, image=photo)
         image_label.image = photo
-        image_label.grid(row=0, column=column, padx=10)
+        image_label.grid(row=row, column=column, padx=10)
 
         name_label = tk.Label(duplicate_frame, text=file_path.name)
-        name_label.grid(row=1, column=column, padx=10, pady=(0, 15))
+        name_label.grid(row=row + 1, column=column, padx=10)
 
-    delete_button = tk.Button(
-        duplicate_frame,
-        text=f"Keep {files[0].name}, delete other copies",
-        command=lambda: delete_duplicate_group(parent, files, duplicate_frame),
-    )
-    delete_button.grid(row=2, column=0, columnspan=len(files), pady=(0, 10))
+        delete_button = tk.Button(
+            duplicate_frame,
+            text="Delete",
+            command=lambda path=file_path: delete_photo(
+                parent, files, path, refresh
+            ),
+        )
+        delete_button.grid(row=row + 2, column=column, padx=10, pady=(0, 15))
 
 
-def delete_duplicate_group(parent, files, duplicate_frame):
-    kept_file = files[0]
-    files_to_delete = files[1:]
+def delete_photo(parent, files, file_path, refresh):
     confirmed = messagebox.askyesno(
-        "Delete duplicate photos",
-        f"Keep {kept_file.name} and permanently delete "
-        f"{len(files_to_delete)} duplicate photo(s)?",
+        "Delete photo",
+        f"Permanently delete {file_path.name}?",
         parent=parent.winfo_toplevel(),
     )
     if not confirmed:
         return
 
-    failed_files = []
-    for file_path in files_to_delete:
-        try:
-            file_path.unlink()
-        except OSError as error:
-            failed_files.append((file_path, error))
-
-    if failed_files:
-        duplicate_frame.destroy()
-        display_duplicate_group(
-            parent,
-            [kept_file, *(file_path for file_path, _ in failed_files)],
-        )
-        failures = "\n".join(
-            f"{file_path}: {error}" for file_path, error in failed_files
-        )
+    try:
+        file_path.unlink()
+    except OSError as error:
         messagebox.showerror(
-            "Could not delete all duplicates",
-            f"Some files were deleted, but these could not be removed:\n{failures}",
+            "Could not delete photo",
+            f"{file_path}: {error}",
             parent=parent.winfo_toplevel(),
         )
         return
 
-    duplicate_frame.destroy()
-    messagebox.showinfo(
-        "Duplicates deleted",
-        f"Kept {kept_file.name} and deleted {len(files_to_delete)} duplicate "
-        f"photo(s).",
-        parent=parent.winfo_toplevel(),
-    )
+    files.remove(file_path)
+    refresh()
 
 def run() -> None:
     """Create and display the application window."""
