@@ -41,8 +41,39 @@ def display_duplicate_photos(root, duplicates):
     set_label = tk.Label(popup, font=("Arial", 14))
     set_label.pack(pady=10)
 
-    group_frame = tk.Frame(popup)
-    group_frame.pack(fill="both", expand=True)
+    content_frame = tk.Frame(popup)
+    content_frame.pack(fill="both", expand=True)
+
+    content_canvas = tk.Canvas(content_frame)
+    vertical_scrollbar = tk.Scrollbar(
+        content_frame,
+        orient="vertical",
+        command=content_canvas.yview,
+    )
+    horizontal_scrollbar = tk.Scrollbar(
+        content_frame,
+        orient="horizontal",
+        command=content_canvas.xview,
+    )
+    content_canvas.configure(
+        yscrollcommand=vertical_scrollbar.set,
+        xscrollcommand=horizontal_scrollbar.set,
+    )
+
+    content_canvas.grid(row=0, column=0, sticky="nsew")
+    vertical_scrollbar.grid(row=0, column=1, sticky="ns")
+    horizontal_scrollbar.grid(row=1, column=0, sticky="ew")
+    content_frame.grid_rowconfigure(0, weight=1)
+    content_frame.grid_columnconfigure(0, weight=1)
+
+    group_frame = tk.Frame(content_canvas)
+    content_canvas.create_window((0, 0), window=group_frame, anchor="nw")
+    group_frame.bind(
+        "<Configure>",
+        lambda _event: content_canvas.configure(
+            scrollregion=content_canvas.bbox("all")
+        ),
+    )
 
     next_button = tk.Button(popup, text="Next")
     next_button.pack(pady=10)
