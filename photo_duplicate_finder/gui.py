@@ -58,7 +58,7 @@ def display_duplicate_photos(root, duplicates):
         else:
             next_button.config(text="Next")
 
-        display_duplicate_group(group_frame, groups[index], show_current_group)
+        display_duplicate_group(group_frame, groups[index], show_next_group)
 
     def show_next_group():
         if state["index"] < len(groups) - 1:
@@ -76,7 +76,12 @@ def display_duplicate_photos(root, duplicates):
     show_current_group()
 
 
-def display_duplicate_group(parent, files, refresh):
+def display_duplicate_group(parent, files, next_group):
+    def refresh():
+        for widget in parent.winfo_children():
+            widget.destroy()
+        display_duplicate_group(parent, files, next_group)
+
     duplicate_frame = tk.Frame(parent)
     duplicate_frame.pack(pady=(0, 15))
 
@@ -103,37 +108,50 @@ def display_duplicate_group(parent, files, refresh):
         name_label = tk.Label(duplicate_frame, text=file_path.name)
         name_label.grid(row=row + 1, column=column, padx=10)
 
-        delete_button = tk.Button(
+        keep_button = tk.Button(
             duplicate_frame,
-            text="Delete",
-            command=lambda path=file_path: delete_photo(
-                parent, files, path, refresh
+            text="Keep this image",
+            command=lambda path=file_path: keep_photo(
+                parent, files, path, refresh, next_group
             ),
         )
-        delete_button.grid(row=row + 2, column=column, padx=10, pady=(0, 15))
+        keep_button.grid(row=row + 2, column=column, padx=10, pady=(0, 15))
 
 
-def delete_photo(parent, files, file_path, refresh):
+def keep_photo(parent, files, file_path, refresh, next_group):
+    duplicates = [path for path in files if path != file_path]
+    if not duplicates:
+        next_group()
+        return
+
     confirmed = messagebox.askyesno(
-        "Delete photo",
-        f"Permanently delete {file_path.name}?",
+        "Keep this image",
+        f"Keep {file_path.name} and permanently delete "
+        f"{len(duplicates)} other {'copy' if len(duplicates) == 1 else 'copies'}?",
         parent=parent.winfo_toplevel(),
     )
     if not confirmed:
         return
 
-    try:
-        file_path.unlink()
-    except OSError as error:
+    failed_deletions = []
+    for duplicate in duplicates:
+        try:
+            duplicate.unlink()
+        except OSError as error:
+            failed_deletions.append((duplicate, error))
+
+    if failed_deletions:
+        files[:] = [file_path] + [path for path, _ in failed_deletions]
         messagebox.showerror(
-            "Could not delete photo",
-            f"{file_path}: {error}",
+            "Could not delete all duplicate photos",
+            "\n".join(f"{path}: {error}" for path, error in failed_deletions),
             parent=parent.winfo_toplevel(),
         )
+        refresh()
         return
 
-    files.remove(file_path)
-    refresh()
+    files[:] = [file_path]
+    next_group()
 
 def run() -> None:
     """Create and display the application window."""
