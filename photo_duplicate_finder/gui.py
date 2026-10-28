@@ -124,8 +124,16 @@ def display_duplicate_group(parent, files, next_group):
         message.grid(row=0, column=0, columnspan=IMAGES_PER_ROW, pady=20)
 
     for position, file_path in enumerate(files):
-        row = (position // IMAGES_PER_ROW) * 3 + 1
+        row = (position // IMAGES_PER_ROW) * 4 + 1
         column = position % IMAGES_PER_ROW
+
+        path_label = tk.Label(
+            duplicate_frame,
+            text=str(file_path),
+            wraplength=170,
+            justify="center",
+        )
+        path_label.grid(row=row, column=column, padx=10)
 
         image = Image.open(file_path)
         image.thumbnail((150, 150))
@@ -134,10 +142,10 @@ def display_duplicate_group(parent, files, next_group):
 
         image_label = tk.Label(duplicate_frame, image=photo)
         image_label.image = photo
-        image_label.grid(row=row, column=column, padx=10)
+        image_label.grid(row=row + 1, column=column, padx=10)
 
         name_label = tk.Label(duplicate_frame, text=file_path.name)
-        name_label.grid(row=row + 1, column=column, padx=10)
+        name_label.grid(row=row + 2, column=column, padx=10)
 
         keep_button = tk.Button(
             duplicate_frame,
@@ -146,7 +154,7 @@ def display_duplicate_group(parent, files, next_group):
                 parent, files, path, refresh, next_group
             ),
         )
-        keep_button.grid(row=row + 2, column=column, padx=10, pady=(0, 15))
+        keep_button.grid(row=row + 3, column=column, padx=10, pady=(0, 15))
 
 
 def keep_photo(parent, files, file_path, refresh, next_group):
