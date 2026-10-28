@@ -107,11 +107,14 @@ def display_duplicate_photos(root, duplicates):
     show_current_group()
 
 
-def display_duplicate_group(parent, files, next_group):
+def display_duplicate_group(parent, files, next_group, keep_files=None):
+    if keep_files is None:
+        keep_files = set(files)
+
     def refresh():
         for widget in parent.winfo_children():
             widget.destroy()
-        display_duplicate_group(parent, files, next_group)
+        display_duplicate_group(parent, files, next_group, keep_files)
 
     duplicate_frame = tk.Frame(parent)
     duplicate_frame.pack(pady=(0, 15))
@@ -147,49 +150,81 @@ def display_duplicate_group(parent, files, next_group):
         name_label = tk.Label(duplicate_frame, text=file_path.name)
         name_label.grid(row=row + 2, column=column, padx=10)
 
-        keep_button = tk.Button(
+        keep_var = tk.BooleanVar(value=file_path in keep_files)
+
+        def update_keep_selection(path=file_path, variable=keep_var):
+            if variable.get():
+                keep_files.add(path)
+            else:
+                keep_files.discard(path)
+
+        keep_checkbutton = tk.Checkbutton(
             duplicate_frame,
             text="Keep this image",
-            command=lambda path=file_path: keep_photo(
-                parent, files, path, refresh, next_group
+            variable=keep_var,
+            command=update_keep_selection,
+        )
+        keep_checkbutton.grid(row=row + 3, column=column, padx=10, pady=(0, 15))
+
+    if len(files) >= 2:
+        delete_button = tk.Button(
+            parent,
+            text="Delete unselected",
+            command=lambda: delete_unselected(
+                parent, files, keep_files, refresh, next_group
             ),
         )
-        keep_button.grid(row=row + 3, column=column, padx=10, pady=(0, 15))
+        delete_button.pack(pady=10)
 
 
-def keep_photo(parent, files, file_path, refresh, next_group):
-    duplicates = [path for path in files if path != file_path]
-    if not duplicates:
-        next_group()
+def delete_unselected(parent, files, keep_files, refresh, next_group):
+    if not keep_files:
+        messagebox.showwarning(
+            "Choose an image to keep",
+            "Select at least one image to keep before deleting.",
+            parent=parent.winfo_toplevel(),
+        )
+        return
+
+    files_to_delete = [path for path in files if path not in keep_files]
+    if not files_to_delete:
+        messagebox.showinfo(
+            "Nothing to delete",
+            "Uncheck the images you want to delete first.",
+            parent=parent.winfo_toplevel(),
+        )
         return
 
     confirmed = messagebox.askyesno(
-        "Keep this image",
-        f"Keep {file_path.name} and permanently delete "
-        f"{len(duplicates)} other {'copy' if len(duplicates) == 1 else 'copies'}?",
+        "Delete unselected images",
+        f"Permanently delete {len(files_to_delete)} unselected "
+        f"{'image' if len(files_to_delete) == 1 else 'images'}?",
         parent=parent.winfo_toplevel(),
     )
     if not confirmed:
         return
 
     failed_deletions = []
-    for duplicate in duplicates:
+    for file_path in files_to_delete:
         try:
-            duplicate.unlink()
+            file_path.unlink()
         except OSError as error:
-            failed_deletions.append((duplicate, error))
+            failed_deletions.append((file_path, error))
 
     if failed_deletions:
-        files[:] = [file_path] + [path for path, _ in failed_deletions]
+        failed_paths = {path for path, _ in failed_deletions}
+        files[:] = [
+            path for path in files if path in keep_files or path in failed_paths
+        ]
         messagebox.showerror(
-            "Could not delete all duplicate photos",
+            "Could not delete all selected images",
             "\n".join(f"{path}: {error}" for path, error in failed_deletions),
             parent=parent.winfo_toplevel(),
         )
         refresh()
         return
 
-    files[:] = [file_path]
+    files[:] = [path for path in files if path in keep_files]
     next_group()
 
 def run() -> None:
