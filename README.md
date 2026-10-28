@@ -9,7 +9,7 @@ The program will use two main methods to detect duplicates:
 - **File hashing** to identify images that are exact duplicates.
 - **Image comparison** to identify images that look the same or very similar even if the files are not identical.
 
-The application provides a simple graphical interface where the user can select a folder and scan its images. For each duplicate group, the user can select the images to keep. After confirmation, the unselected copies are permanently deleted and the application advances to the next group.
+The application provides a simple graphical interface where the user can select a folder and scan its images. For each duplicate group, the user can mark images to keep or delete. After confirmation, only the images marked for deletion are permanently deleted.
 
 ## Team Member(s)
 
@@ -87,8 +87,8 @@ From the project folder, run:
 python main.py
 ```
 
-Duplicate groups are detected by exact file hash. In the results window, leave
-**Keep this image** checked under each image you want to save. Uncheck the
-images to remove, then select **Delete unselected** and confirm. Selected images
-are kept, unselected images are permanently deleted, and the application
-automatically advances to the next duplicate set.
+Duplicate groups are detected by exact file hash. In the results window, use
+the **Keep** and **Delete** checkboxes under each image. Both start unchecked;
+checking one clears the other. Select **Delete selected** to remove only images
+checked **Delete**, or select **Keep selected** to remove every image not
+checked **Keep**. Confirm the deletion to advance to the next duplicate set.

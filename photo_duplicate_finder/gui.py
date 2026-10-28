@@ -107,14 +107,16 @@ def display_duplicate_photos(root, duplicates):
     show_current_group()
 
 
-def display_duplicate_group(parent, files, next_group, keep_files=None):
+def display_duplicate_group(parent, files, next_group, keep_files=None, delete_files=None):
     if keep_files is None:
-        keep_files = set(files)
+        keep_files = set()
+    if delete_files is None:
+        delete_files = set()
 
     def refresh():
         for widget in parent.winfo_children():
             widget.destroy()
-        display_duplicate_group(parent, files, next_group, keep_files)
+        display_duplicate_group(parent, files, next_group, keep_files, delete_files)
 
     duplicate_frame = tk.Frame(parent)
     duplicate_frame.pack(pady=(0, 15))
@@ -127,7 +129,7 @@ def display_duplicate_group(parent, files, next_group, keep_files=None):
         message.grid(row=0, column=0, columnspan=IMAGES_PER_ROW, pady=20)
 
     for position, file_path in enumerate(files):
-        row = (position // IMAGES_PER_ROW) * 4 + 1
+        row = (position // IMAGES_PER_ROW) * 5 + 1
         column = position % IMAGES_PER_ROW
 
         path_label = tk.Label(
@@ -151,53 +153,117 @@ def display_duplicate_group(parent, files, next_group, keep_files=None):
         name_label.grid(row=row + 2, column=column, padx=10)
 
         keep_var = tk.BooleanVar(value=file_path in keep_files)
+        delete_var = tk.BooleanVar(value=file_path in delete_files)
 
-        def update_keep_selection(path=file_path, variable=keep_var):
+        def update_keep_selection(
+            path=file_path,
+            variable=keep_var,
+            other_variable=delete_var,
+        ):
             if variable.get():
+                other_variable.set(False)
+                delete_files.discard(path)
                 keep_files.add(path)
             else:
                 keep_files.discard(path)
 
+        def update_delete_selection(
+            path=file_path,
+            variable=delete_var,
+            other_variable=keep_var,
+        ):
+            if variable.get():
+                other_variable.set(False)
+                keep_files.discard(path)
+                delete_files.add(path)
+            else:
+                delete_files.discard(path)
+
         keep_checkbutton = tk.Checkbutton(
             duplicate_frame,
-            text="Keep this image",
+            text="Keep",
             variable=keep_var,
             command=update_keep_selection,
         )
-        keep_checkbutton.grid(row=row + 3, column=column, padx=10, pady=(0, 15))
+        keep_checkbutton.grid(row=row + 3, column=column, padx=10)
+
+        delete_checkbutton = tk.Checkbutton(
+            duplicate_frame,
+            text="Delete",
+            variable=delete_var,
+            command=update_delete_selection,
+        )
+        delete_checkbutton.grid(
+            row=row + 4, column=column, padx=10, pady=(0, 15)
+        )
 
     if len(files) >= 2:
+        action_frame = tk.Frame(parent)
+        action_frame.pack(pady=10)
+
         delete_button = tk.Button(
-            parent,
-            text="Delete unselected",
-            command=lambda: delete_unselected(
+            action_frame,
+            text="Delete selected",
+            command=lambda: delete_selected(
+                parent, files, delete_files, refresh, next_group
+            ),
+        )
+        delete_button.pack(side="left", padx=5)
+
+        keep_button = tk.Button(
+            action_frame,
+            text="Keep selected",
+            command=lambda: keep_selected(
                 parent, files, keep_files, refresh, next_group
             ),
         )
-        delete_button.pack(pady=10)
+        keep_button.pack(side="left", padx=5)
 
 
-def delete_unselected(parent, files, keep_files, refresh, next_group):
+def delete_selected(parent, files, delete_files, refresh, next_group):
+    delete_files = {path for path in files if path in delete_files}
+    delete_marked_files(
+        parent,
+        files,
+        delete_files,
+        "Delete selected images",
+        refresh,
+        next_group,
+    )
+
+
+def keep_selected(parent, files, keep_files, refresh, next_group):
+    keep_files = {path for path in files if path in keep_files}
     if not keep_files:
         messagebox.showwarning(
-            "Choose an image to keep",
-            "Select at least one image to keep before deleting.",
+            "Choose images to keep",
+            "Check Keep under the images you want to save first.",
             parent=parent.winfo_toplevel(),
         )
         return
 
-    files_to_delete = [path for path in files if path not in keep_files]
+    delete_marked_files(
+        parent,
+        files,
+        set(files) - keep_files,
+        "Keep selected images",
+        refresh,
+        next_group,
+    )
+
+
+def delete_marked_files(parent, files, files_to_delete, action, refresh, next_group):
     if not files_to_delete:
         messagebox.showinfo(
             "Nothing to delete",
-            "Uncheck the images you want to delete first.",
+            "There are no images to delete.",
             parent=parent.winfo_toplevel(),
         )
         return
 
     confirmed = messagebox.askyesno(
-        "Delete unselected images",
-        f"Permanently delete {len(files_to_delete)} unselected "
+        action,
+        f"Permanently delete {len(files_to_delete)} "
         f"{'image' if len(files_to_delete) == 1 else 'images'}?",
         parent=parent.winfo_toplevel(),
     )
@@ -214,17 +280,19 @@ def delete_unselected(parent, files, keep_files, refresh, next_group):
     if failed_deletions:
         failed_paths = {path for path, _ in failed_deletions}
         files[:] = [
-            path for path in files if path in keep_files or path in failed_paths
+            path
+            for path in files
+            if path not in files_to_delete or path in failed_paths
         ]
         messagebox.showerror(
-            "Could not delete all selected images",
+            "Could not delete all images",
             "\n".join(f"{path}: {error}" for path, error in failed_deletions),
             parent=parent.winfo_toplevel(),
         )
         refresh()
         return
 
-    files[:] = [path for path in files if path in keep_files]
+    files[:] = [path for path in files if path not in files_to_delete]
     next_group()
 
 def run() -> None:
