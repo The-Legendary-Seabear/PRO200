@@ -11,14 +11,14 @@ def choose_folder(folder_label):
     if folder:
         folder_label.config(text=folder)
 
-def search_folder(root, folder_label):
+def search_folder(root, folder_label, include_subfolders):
     folder = folder_label.cget("text")
 
     if folder == "No folder selected":
         messagebox.showwarning("No Folder", "Please select a folder first.")
         return
 
-    duplicates = find_duplicates(folder)
+    duplicates = find_duplicates(folder, include_subfolders.get())
 
     display_duplicate_photos(root, duplicates)
 
@@ -210,7 +210,11 @@ def run() -> None:
     choose_button = tk.Button(root,text="Choose Folder",command=lambda: choose_folder(folder_label))
     choose_button.pack(pady=10)
 
-    search_button = tk.Button(root, text="Search Folder", command=lambda: search_folder(root, folder_label))
+    include_subfolders = tk.BooleanVar(value=False)
+    subfolder_check = tk.Checkbutton(root, text="Include subfolders", variable=include_subfolders)
+    subfolder_check.pack(pady=5)
+
+    search_button = tk.Button(root, text="Search Folder", command=lambda: search_folder(root, folder_label, include_subfolders))
     search_button.pack(pady=10)
 
     root.mainloop()
