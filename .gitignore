@@ -1,0 +1,15 @@
+# Python generated files
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+
+# Testing cache
+.pytest_cache/
+
+# Operating system files
+.DS_Store
+Thumbs.db

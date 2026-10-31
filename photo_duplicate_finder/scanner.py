@@ -1,6 +1,7 @@
 """Folder traversal and image discovery."""
 from pathlib import Path
 from photo_duplicate_finder.hashing import get_file_hash
+from photo_duplicate_finder.hashing import get_perceptual_hash
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"}
 
@@ -31,3 +32,30 @@ def find_duplicates(folder_path, include_subfolders=False):
             duplicates[file_hash] = files
 
     return duplicates
+
+def find_similar_images(folder_path, threshold=5, include_subfolders=False):
+    folder = Path(folder_path)
+    image_hashes = []
+    similar_images = []
+
+    files = folder.rglob("*") if include_subfolders else folder.iterdir()
+
+    for file_path in files:
+        if file_path.is_file() and file_path.suffix.lower() in IMAGE_EXTENSIONS:
+            perceptual_hash = get_perceptual_hash(file_path)
+            image_hashes.append((file_path, perceptual_hash))
+
+    for i in range(len(image_hashes)):
+        for j in range(i + 1, len(image_hashes)):
+            file1, hash1 = image_hashes[i]
+            file2, hash2 = image_hashes[j]
+
+            difference = hash1 - hash2
+
+            if difference == 0:
+                continue
+
+            if difference <= threshold:
+                similar_images.append((file1, file2, difference))
+
+    return similar_images
