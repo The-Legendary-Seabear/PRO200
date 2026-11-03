@@ -275,7 +275,7 @@ def display_similar_images(root, similars):
         else:
             next_button.config(text="Next")
     
-        display_similar_group(group_frame, groups[index])
+        display_duplicate_group(group_frame, groups[index], show_next_group)
     
     def show_next_group():
         if state["index"] < len(groups) - 1:
