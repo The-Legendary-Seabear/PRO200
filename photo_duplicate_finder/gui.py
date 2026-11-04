@@ -3,8 +3,8 @@
 import tkinter as tk
 from tkinter import messagebox
 from tkinter import filedialog
-from photo_duplicate_finder.scanner import find_duplicates, find_similar_images
 from PIL import Image, ImageTk
+from photo_duplicate_finder.scanner import (find_duplicates,find_similar_images,compare_folders)
 
 
 THEMES = {
@@ -62,11 +62,11 @@ def search_folder(root, folder_label, include_subfolders, theme="light"):
 
     #duplicates = find_duplicates(folder)
     duplicates = find_duplicates(folder, include_subfolders.get())
-    similar_images = find_similar_images(folder)
+    similar_images = find_similar_images(folder, include_subfolders=include_subfolders.get())
     #display_duplicate_photos(root, duplicates, similar_images)
     display_duplicate_photos(root, duplicates, similar_images, theme)
 
-    #display_similar_images(root, similar_images)
+    #display_similar_images(root, similar_images, theme)
 
 
 IMAGES_PER_ROW = 4
@@ -82,15 +82,8 @@ def display_duplicate_photos(root, duplicates,similar_images, theme="light"):
     popup.configure(bg=colors["background"])
 
     if not duplicates:
-        
-        display_similar_images(root, similar_images)
-        tk.Label(
-            popup,
-            text="No duplicate photos found.",
-            font=("Segoe UI", 13),
-            bg=colors["background"],
-            fg=colors["text"],
-        ).pack(expand=True)
+        popup.destroy()
+        display_similar_images(root, similar_images, theme)
         return
 
     groups = [list(files) for files in duplicates.values()]
@@ -205,90 +198,146 @@ def display_duplicate_photos(root, duplicates,similar_images, theme="light"):
                 parent=popup,
             )
             popup.destroy()
-            display_similar_images(root, similar_images)
+            display_similar_images(root, similar_images, theme)
 
     next_button.config(command=show_next_group)
     show_current_group()
 
-def display_similar_images(root, similars):
+def display_similar_images(root, similars, theme="light"):
+    """Review similar image pairs using the existing themed Keep/Delete controls."""
+    colors = THEMES[theme]
     popup = tk.Toplevel(root)
     popup.title("Similar Photos")
-    popup.geometry("800x600")
-    if not similars:
-            label = tk.Label(popup, text="No similar photos found.")
-            label.pack(pady=20)
-            return
-    
-    groups = [[file1, file2]
-    for file1, file2, difference in similars
-]
+    popup.geometry("920x680")
+    popup.minsize(640, 480)
+    popup.configure(bg=colors["background"])
+
+    groups = [
+        [file1, file2]
+        for file1, file2, difference in similars
+        if file1.is_file() and file2.is_file()
+    ]
+
+    if not groups:
+        tk.Label(
+            popup,
+            text="No similar photos found.",
+            font=("Segoe UI", 13),
+            bg=colors["background"],
+            fg=colors["text"],
+        ).pack(expand=True)
+        return
+
     state = {"index": 0}
-    
-    set_label = tk.Label(popup, font=("Arial", 14))
-    set_label.pack(pady=10)
-    
-    content_frame = tk.Frame(popup)
-    content_frame.pack(fill="both", expand=True)
-    
-    content_canvas = tk.Canvas(content_frame)
+    heading = tk.Frame(popup, bg=colors["background"])
+    heading.pack(fill="x", padx=28, pady=(24, 16))
+    tk.Label(
+        heading,
+        text="Review similar photos",
+        font=("Segoe UI", 20, "bold"),
+        bg=colors["background"],
+        fg=colors["text"],
+    ).pack(anchor="w")
+    set_label = tk.Label(
+        heading,
+        font=("Segoe UI", 10),
+        bg=colors["background"],
+        fg=colors["muted"],
+    )
+    set_label.pack(anchor="w", pady=(5, 0))
+
+    content_frame = tk.Frame(popup, bg=colors["background"])
+    content_frame.pack(fill="both", expand=True, padx=20)
+    content_canvas = tk.Canvas(
+        content_frame,
+        bg=colors["background"],
+        highlightthickness=0,
+        borderwidth=0,
+    )
     vertical_scrollbar = tk.Scrollbar(
         content_frame,
         orient="vertical",
         command=content_canvas.yview,
     )
-    horizontal_scrollbar = tk.Scrollbar(
-        content_frame,
-        orient="horizontal",
-        command=content_canvas.xview,
+    vertical_scrollbar.configure(
+        bg=colors["button"],
+        activebackground=colors["accent"],
+        troughcolor=colors["background"],
+        relief="flat",
+        bd=0,
     )
-    content_canvas.configure(
-        yscrollcommand=vertical_scrollbar.set,
-        xscrollcommand=horizontal_scrollbar.set,
-    )
-    
+    content_canvas.configure(yscrollcommand=vertical_scrollbar.set)
     content_canvas.grid(row=0, column=0, sticky="nsew")
     vertical_scrollbar.grid(row=0, column=1, sticky="ns")
-    horizontal_scrollbar.grid(row=1, column=0, sticky="ew")
     content_frame.grid_rowconfigure(0, weight=1)
     content_frame.grid_columnconfigure(0, weight=1)
-    
-    group_frame = tk.Frame(content_canvas)
-    content_canvas.create_window((0, 0), window=group_frame, anchor="nw")
+
+    group_frame = tk.Frame(content_canvas, bg=colors["background"])
+    group_window = content_canvas.create_window(
+        (0, 0), window=group_frame, anchor="n"
+    )
+    content_canvas.bind(
+        "<Configure>",
+        lambda event: content_canvas.coords(group_window, event.width / 2, 0),
+    )
     group_frame.bind(
         "<Configure>",
         lambda _event: content_canvas.configure(
             scrollregion=content_canvas.bbox("all")
         ),
     )
-    
-    next_button = tk.Button(popup, text="Next")
-    next_button.pack(pady=10)
-    
+
+    next_button = tk.Button(
+        popup,
+        text="Next",
+        font=("Segoe UI", 10, "bold"),
+        padx=20,
+        pady=10,
+    )
+    _style_button(next_button, theme, primary=True)
+    next_button.pack(anchor="e", padx=28, pady=20)
+
     def show_current_group():
+        # A previous Keep/Delete action may have removed a file in a later pair.
+        while state["index"] < len(groups) and not all(
+            path.is_file() for path in groups[state["index"]]
+        ):
+            state["index"] += 1
+
+        if state["index"] >= len(groups):
+            messagebox.showinfo(
+                "Done", "You have reviewed all similar sets.", parent=popup
+            )
+            popup.destroy()
+            return
+
         for widget in group_frame.winfo_children():
             widget.destroy()
-    
+        content_canvas.yview_moveto(0)
+
         index = state["index"]
-        set_label.config(text=f"Similar image pair {index + 1} of {len(groups)}")
-        if index == len(groups) - 1:
-             next_button.config(text="Finish")
-        else:
-            next_button.config(text="Next")
-    
-        display_duplicate_group(group_frame, groups[index], show_next_group)
-    
+        set_label.config(
+            text=f"Similar image pair {index + 1} of {len(groups)}"
+            "  ·  Select which photos to keep or delete"
+        )
+        next_button.config(text="Finish" if index == len(groups) - 1 else "Next")
+        display_duplicate_group(
+            group_frame,
+            groups[index],
+            show_next_group,
+            theme=theme,
+        )
+
     def show_next_group():
         if state["index"] < len(groups) - 1:
             state["index"] += 1
             show_current_group()
         else:
             messagebox.showinfo(
-                "Done",
-                "You have reviewed all similar sets.",
-                parent=popup,
+                "Done", "You have reviewed all similar sets.", parent=popup
             )
             popup.destroy()
-    
+
     next_button.config(command=show_next_group)
     show_current_group()
 
@@ -558,6 +607,107 @@ def delete_marked_files(parent, files, files_to_delete, action, refresh, next_gr
     files[:] = [path for path in files if path not in files_to_delete]
     next_group()
 
+def open_folder_comparison(root, theme="light"):
+    """Display a themed form for scanning two folders together."""
+    colors = THEMES[theme]
+    popup = tk.Toplevel(root)
+    popup.title("Compare Two Folders")
+    popup.geometry("760x510")
+    popup.minsize(650, 470)
+    popup.configure(bg=colors["background"])
+
+    folder_a = tk.StringVar(master=popup)
+    folder_b = tk.StringVar(master=popup)
+    include_subfolders = tk.BooleanVar(master=popup, value=False)
+
+    outer = tk.Frame(popup, bg=colors["background"])
+    outer.pack(fill="both", expand=True, padx=40, pady=26)
+
+    tk.Label(
+        outer, text="PHOTO TOOLKIT", font=("Segoe UI", 9, "bold"),
+        bg=colors["background"], fg=colors["accent"],
+    ).pack(anchor="w")
+    tk.Label(
+        outer, text="Compare Two Folders", font=("Segoe UI", 22, "bold"),
+        bg=colors["background"], fg=colors["text"],
+    ).pack(anchor="w", pady=(4, 5))
+    tk.Label(
+        outer,
+        text="Find exact duplicates and similar images across both folders.",
+        font=("Segoe UI", 10), bg=colors["background"], fg=colors["muted"],
+    ).pack(anchor="w", pady=(0, 18))
+
+    card = tk.Frame(
+        outer, bg=colors["surface"],
+        highlightbackground=colors["border"], highlightthickness=1,
+        padx=24, pady=20,
+    )
+    card.pack(fill="both", expand=True)
+
+    def select_folder(variable):
+        folder = filedialog.askdirectory(parent=popup, mustexist=True)
+        if folder:
+            variable.set(folder)
+
+    for name, variable in (("FOLDER A", folder_a), ("FOLDER B", folder_b)):
+        tk.Label(
+            card, text=name, font=("Segoe UI", 9, "bold"),
+            bg=colors["surface"], fg=colors["muted"],
+        ).pack(anchor="w", pady=(0, 7))
+
+        row = tk.Frame(card, bg=colors["surface"])
+        row.pack(fill="x", pady=(0, 16))
+
+        entry = tk.Entry(
+            row, textvariable=variable, font=("Segoe UI", 10),
+            bg=colors["surface"], fg=colors["text"],
+            insertbackground=colors["text"], relief="flat",
+            highlightthickness=1, highlightbackground=colors["border"],
+            highlightcolor=colors["accent"],
+        )
+        entry.pack(side="left", fill="x", expand=True, ipady=9, padx=(0, 10))
+
+        browse_button = tk.Button(
+            row, text="Browse...", font=("Segoe UI", 9, "bold"),
+            padx=14, pady=9,
+            command=lambda v=variable: select_folder(v),
+        )
+        _style_button(browse_button, theme)
+        browse_button.pack(side="right")
+
+    tk.Checkbutton(
+        card, text="Include subfolders", variable=include_subfolders,
+        font=("Segoe UI", 9), bg=colors["surface"], fg=colors["text"],
+        activebackground=colors["surface"], activeforeground=colors["text"],
+        selectcolor=colors["background"], cursor="hand2",
+    ).pack(anchor="w", pady=(0, 14))
+
+    def run_comparison():
+        if not folder_a.get() or not folder_b.get():
+            messagebox.showwarning(
+                "Missing Folder", "Please select both folders.", parent=popup
+            )
+            return
+
+        try:
+            duplicates, similars = compare_folders(
+                folder_a.get(), folder_b.get(), include_subfolders.get()
+            )
+        except OSError as error:
+            messagebox.showerror("Scan Error", str(error), parent=popup)
+            return
+
+        # Reuse the existing exact-duplicate review, then similar-image review.
+        display_duplicate_photos(popup, duplicates, similars, theme)
+
+    compare_action = tk.Button(
+        card, text="Compare Folders", font=("Segoe UI", 10, "bold"),
+        padx=20, pady=11, command=run_comparison,
+    )
+    _style_button(compare_action, theme, primary=True)
+    compare_action.pack(anchor="w")
+
+
 def run() -> None:
     """Create and display the application window."""
     root = tk.Tk()
@@ -692,6 +842,18 @@ def run() -> None:
     )
     _style_button(search_button, "light", primary=True)
     search_button.pack(anchor="w", pady=(20, 12))
+
+    compare_button = tk.Button(
+        card,
+        text="Compare Two Folders",
+        font=("Segoe UI", 10, "bold"),
+        padx=20,
+        pady=12,
+        command=lambda: open_folder_comparison(root, theme_state["name"]),
+    )
+    _style_button(compare_button, "light")
+    compare_button.pack(anchor="w", pady=(0, 12))
+
     status_label = tk.Label(
         card,
         text="Your photos stay on your device.",
@@ -736,6 +898,7 @@ def run() -> None:
         status_label.configure(bg=colors["surface"], fg=colors["muted"])
         _style_button(choose_button, theme)
         _style_button(search_button, theme, primary=True)
+        _style_button(compare_button, theme)
         _style_button(theme_button, theme)
         theme_button.configure(
             text="Light mode" if theme == "dark" else "Dark mode"
